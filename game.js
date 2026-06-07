@@ -41,20 +41,24 @@
   best = Number(localStorage.getItem('block_pop_best') || 0);
   bestScoreEl.textContent = best;
 
-  const ADSGRAM_BLOCK_ID = 'YOUR_ADSGRAM_BLOCK_ID';
-  const isAdsgramConfigured = () => ADSGRAM_BLOCK_ID && ADSGRAM_BLOCK_ID !== 'YOUR_ADSGRAM_BLOCK_ID';
-  let adsgramController = null;
+  const ADSGRAM_REWARD_BLOCK_ID = '34365';
+  const ADSGRAM_INTERSTITIAL_BLOCK_ID = '34366';
+  const adsgramControllers = new Map();
 
-  function getAdsgramController(debug = false) {
-    if (!isAdsgramConfigured()) return null;
+  function isAdsgramConfigured(blockId) {
+    return blockId && !String(blockId).startsWith('YOUR_');
+  }
+
+  function getAdsgramController(blockId, debug = false) {
+    if (!isAdsgramConfigured(blockId)) return null;
     if (!window.Adsgram?.init) return null;
-    if (!adsgramController) {
-      adsgramController = window.Adsgram.init({
-        blockId: ADSGRAM_BLOCK_ID,
+    if (!adsgramControllers.has(blockId)) {
+      adsgramControllers.set(blockId, window.Adsgram.init({
+        blockId,
         debug,
-      });
+      }));
     }
-    return adsgramController;
+    return adsgramControllers.get(blockId);
   }
 
   const adBridge = {
@@ -64,7 +68,7 @@
       return true;
     },
     async showInterstitial(reason = 'milestone') {
-      const controller = getAdsgramController(false);
+      const controller = getAdsgramController(ADSGRAM_INTERSTITIAL_BLOCK_ID, false);
       if (!controller) {
         console.info('[ad] interstitial placeholder:', reason);
         showToast('插屏广告位：拿到 AdsGram blockId 后自动启用');
@@ -80,7 +84,7 @@
       }
     },
     async showRewarded(reason = 'reward') {
-      const controller = getAdsgramController(false);
+      const controller = getAdsgramController(ADSGRAM_REWARD_BLOCK_ID, false);
       if (!controller) {
         console.info('[ad] rewarded placeholder:', reason);
         showToast('激励广告模拟完成：配置 blockId 后展示真实广告');
