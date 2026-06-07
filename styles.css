@@ -64,8 +64,8 @@ h1 { margin: 0; font-size: clamp(30px, 8vw, 44px); line-height: 0.95; letter-spa
 .modal-card h2 { margin: 4px 0 10px; font-size: 28px; letter-spacing: -0.05em; }
 .modal-card p { color: var(--muted); }
 .modal-actions { display: grid; gap: 10px; margin-top: 16px; }
-.drag-ghost { position: fixed; z-index: 30; pointer-events: none; transform: translate(-50%, -50%); filter: drop-shadow(0 18px 28px rgba(0,0,0,.45)); }
-.drag-ghost .preview-cell { width: 20px; height: 20px; border-radius: 6px; }
+.drag-ghost { position: fixed; z-index: 30; pointer-events: none; transform: translate(-50%, -50%) scale(1.18); transform-origin: center; filter: drop-shadow(0 22px 34px rgba(0,0,0,.55)); will-change: left, top, transform; opacity: .96; }
+.drag-ghost .preview-cell { width: 22px; height: 22px; border-radius: 7px; }
 @media (max-height: 760px) {
   .app-shell { gap: 9px; padding-top: 10px; }
   .top-card { padding: 12px 14px; }
