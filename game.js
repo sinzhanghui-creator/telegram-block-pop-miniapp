@@ -62,11 +62,6 @@
   }
 
   const adBridge = {
-    async showBanner() {
-      // AdsGram reward/interstitial SDK is full-screen. Keep this banner slot
-      // for direct sponsorships, cross-promotion, or another banner provider.
-      return true;
-    },
     async showInterstitial(reason = 'milestone') {
       const controller = getAdsgramController(ADSGRAM_INTERSTITIAL_BLOCK_ID, false);
       if (!controller) {
@@ -121,7 +116,6 @@
     updateUI();
     renderPieces();
     drawBoard();
-    adBridge.showBanner();
   }
 
   function updateUI() {
