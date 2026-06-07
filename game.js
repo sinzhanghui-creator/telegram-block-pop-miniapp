@@ -41,23 +41,60 @@
   best = Number(localStorage.getItem('block_pop_best') || 0);
   bestScoreEl.textContent = best;
 
+  const ADSGRAM_BLOCK_ID = 'YOUR_ADSGRAM_BLOCK_ID';
+  const isAdsgramConfigured = () => ADSGRAM_BLOCK_ID && ADSGRAM_BLOCK_ID !== 'YOUR_ADSGRAM_BLOCK_ID';
+  let adsgramController = null;
+
+  function getAdsgramController(debug = false) {
+    if (!isAdsgramConfigured()) return null;
+    if (!window.Adsgram?.init) return null;
+    if (!adsgramController) {
+      adsgramController = window.Adsgram.init({
+        blockId: ADSGRAM_BLOCK_ID,
+        debug,
+      });
+    }
+    return adsgramController;
+  }
+
   const adBridge = {
     async showBanner() {
-      // TODO: 接入真实 Telegram Mini App 广告网络。
-      // 可选：Monetag、AdsGram、Taddy、或自售频道交叉推广。
+      // AdsGram reward/interstitial SDK is full-screen. Keep this banner slot
+      // for direct sponsorships, cross-promotion, or another banner provider.
       return true;
     },
     async showInterstitial(reason = 'milestone') {
-      console.info('[ad] interstitial placeholder:', reason);
-      showToast('插屏广告位：真实接入后在这里展示广告');
-      await wait(650);
-      return true;
+      const controller = getAdsgramController(false);
+      if (!controller) {
+        console.info('[ad] interstitial placeholder:', reason);
+        showToast('插屏广告位：拿到 AdsGram blockId 后自动启用');
+        await wait(650);
+        return true;
+      }
+      try {
+        await controller.show();
+        return true;
+      } catch (result) {
+        console.warn('[ad] interstitial failed:', result);
+        return false;
+      }
     },
     async showRewarded(reason = 'reward') {
-      console.info('[ad] rewarded placeholder:', reason);
-      showToast('激励广告模拟完成：已发放奖励');
-      await wait(800);
-      return true;
+      const controller = getAdsgramController(false);
+      if (!controller) {
+        console.info('[ad] rewarded placeholder:', reason);
+        showToast('激励广告模拟完成：配置 blockId 后展示真实广告');
+        await wait(800);
+        return true;
+      }
+      try {
+        await controller.show();
+        return true;
+      } catch (result) {
+        console.warn('[ad] rewarded failed:', result);
+        showToast('广告暂时不可用，请稍后再试');
+        return false;
+      }
     }
   };
 
