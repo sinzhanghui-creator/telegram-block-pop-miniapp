@@ -8,6 +8,7 @@
   }
 
   const SIZE = 8;
+  const DRAG_LIFT_PX = 112; // Keep the dragged block above the finger on phones.
   const COLORS = ['#38bdf8', '#a78bfa', '#f472b6', '#34d399', '#fbbf24', '#fb7185', '#60a5fa'];
   const SHAPES = [
     [[1]],
@@ -128,24 +129,30 @@
     const piece = pieces.find(p => p.id === id && !p.used);
     if (!piece) return;
     event.preventDefault();
+    try { event.currentTarget.setPointerCapture?.(event.pointerId); } catch (_) { /* Some WebViews reject capture for synthetic/touch pointers. */ }
     tipEl.classList.add('fade');
     const ghost = document.createElement('div');
     ghost.className = 'drag-ghost';
     ghost.appendChild(piecePreview(piece, true));
     document.body.appendChild(ghost);
     dragState = { piece, ghost, pointerId: event.pointerId, x: event.clientX, y: event.clientY, valid: false, cell: null };
-    moveGhost(event.clientX, event.clientY);
-    window.addEventListener('pointermove', onDragMove);
+    updateDrag(event.clientX, event.clientY);
+    window.addEventListener('pointermove', onDragMove, { passive: false });
     window.addEventListener('pointerup', onDragEnd, { once: true });
     window.addEventListener('pointercancel', onDragCancel, { once: true });
   }
 
   function onDragMove(event) {
     if (!dragState) return;
-    dragState.x = event.clientX;
-    dragState.y = event.clientY;
-    moveGhost(event.clientX, event.clientY);
-    const cell = pointerToCell(event.clientX, event.clientY);
+    event.preventDefault();
+    updateDrag(event.clientX, event.clientY);
+  }
+
+  function updateDrag(x, y) {
+    dragState.x = x;
+    dragState.y = y;
+    moveGhost(x, y);
+    const cell = placementFromPointer(dragState.piece.shape, x, y);
     dragState.cell = cell;
     dragState.valid = cell ? canPlace(dragState.piece.shape, cell.r, cell.c) : false;
     drawBoard(dragState);
@@ -169,13 +176,53 @@
     window.removeEventListener('pointermove', onDragMove);
     dragState = null;
   }
-  function moveGhost(x, y) { if (dragState?.ghost) { dragState.ghost.style.left = `${x}px`; dragState.ghost.style.top = `${y - 38}px`; } }
 
-  function pointerToCell(x, y) {
+  function moveGhost(x, y) {
+    if (!dragState?.ghost) return;
+    dragState.ghost.style.left = `${x}px`;
+    dragState.ghost.style.top = `${y - DRAG_LIFT_PX}px`;
+  }
+
+  function boardMetrics() {
     const rect = canvas.getBoundingClientRect();
-    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) return null;
-    const cell = rect.width / SIZE;
-    return { r: Math.floor((y - rect.top) / cell), c: Math.floor((x - rect.left) / cell) };
+    const gap = 8;
+    const pad = 18;
+    const cell = (rect.width - pad * 2 - gap * (SIZE - 1)) / SIZE;
+    const pitch = cell + gap;
+    return { rect, gap, pad, cell, pitch };
+  }
+
+  function shapeBounds(shape) {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (let y = 0; y < shape.length; y++) {
+      for (let x = 0; x < shape[y].length; x++) {
+        if (!shape[y][x]) continue;
+        minX = Math.min(minX, x); minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
+      }
+    }
+    return { minX, minY, maxX, maxY, width: maxX - minX + 1, height: maxY - minY + 1 };
+  }
+
+  function placementFromPointer(shape, x, y) {
+    const { rect, pad, pitch } = boardMetrics();
+    const liftedY = y - DRAG_LIFT_PX;
+    const b = shapeBounds(shape);
+    const localX = x - rect.left - pad;
+    const localY = liftedY - rect.top - pad;
+    const centerOffsetX = (b.minX + b.width / 2 - 0.5) * pitch;
+    const centerOffsetY = (b.minY + b.height / 2 - 0.5) * pitch;
+    let c = Math.round((localX - centerOffsetX) / pitch);
+    let r = Math.round((localY - centerOffsetY) / pitch);
+    c = Math.max(-b.minX, Math.min(SIZE - 1 - b.maxX, c));
+    r = Math.max(-b.minY, Math.min(SIZE - 1 - b.maxY, r));
+    const boardX = rect.left + pad + (c + b.minX) * pitch;
+    const boardY = rect.top + pad + (r + b.minY) * pitch;
+    const maxX = rect.left + rect.width - pad;
+    const maxY = rect.top + rect.height - pad;
+    const nearBoard = x >= rect.left - 36 && x <= rect.right + 36 && liftedY >= rect.top - 56 && liftedY <= rect.bottom + 56;
+    const insidePlayable = boardX < maxX && boardY < maxY;
+    return nearBoard && insidePlayable ? { r, c } : null;
   }
 
   function canPlace(shape, r, c) {
